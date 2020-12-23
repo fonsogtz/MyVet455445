@@ -6,12 +6,18 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MyVet.Web.Data;
+using MyVet.Web.Data.Entities;
+using MyVet.Web.Helpers;
 
 namespace MyVet.Web
 {
+    //aca configuramos las nuevaws inyecciones
     public class Startup
     {
         public Startup(IConfiguration configuration)
@@ -31,7 +37,30 @@ namespace MyVet.Web
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
+            //trabajamos con identity, con las clases personalizadas
+            services.AddIdentity<User, IdentityRole>(cfg =>
+            {
+                //aca declaramos mail unico y configuraciones del password
+                //mail unico
+                cfg.User.RequireUniqueEmail = true;
+            //condiciones para el password
+                cfg.Password.RequireDigit = false;
+                cfg.Password.RequiredUniqueChars = 0;
+                cfg.Password.RequireLowercase = false;
+                cfg.Password.RequireNonAlphanumeric = false;
+                cfg.Password.RequireUppercase = false;
+            }).AddEntityFrameworkStores<DataContext>();
 
+
+            //agregando conexion a base de datos sql server, con la configuracion defaultConnection, tal como se llama en appsettings.json
+            services.AddDbContext<DataContext>(cfg =>
+            {
+                cfg.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
+            });
+            //inyecta el seeder
+            services.AddTransient<SeedDb>();
+            //asi se configura una inyeccion, con interfaz, inyectar con la interfaz es una buena practica 
+            services.AddScoped<IUserHelper, UserHelper>();
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
         }
 
@@ -50,6 +79,9 @@ namespace MyVet.Web
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
+         //nuestra aplicacion utiliza autenticcion
+            app.UseAuthentication();
+
             app.UseCookiePolicy();
 
             app.UseMvc(routes =>
